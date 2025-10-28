@@ -50,152 +50,80 @@ vietnam-history-1954-1964/
 │       ├── index.css
 │       └── App.css
 ├── public/                 # Static Assets
-├── package.json
-└── README.md
-```
+# Việt Nam 1954-1964: Nội chiến hay Giải phóng dân tộc?
 
-## 🚀 Cài đặt và chạy
+Một trang web tương tác phục vụ cho nghiên cứu và giảng dạy về giai đoạn 1954-1964 ở Việt Nam. Dự án này tập trung vào phân tích hai quan điểm chính về tính chất cuộc đấu tranh và cung cấp tài liệu tham khảo, timeline, và một trợ lý AI chuyên sâu cho giai đoạn 1954-1965.
 
-### Yêu cầu hệ thống
-- Node.js 16+
+---------------------------------
+
+## Giữ repo sạch để push
+
+Trước khi push lên remote, những phần tạm thời / dev-only đã được loại bỏ. Những thứ cần giữ khi push include:
+
+- `src/` (ứng dụng React, components, pages)
+- `public/` (assets tĩnh)
+- `package.json`, `package-lock.json` (hoặc `pnpm-lock.yaml` / `yarn.lock`)
+- `README.md`
+- `.gitignore` (chứa `.env`)
+
+Đã xóa: các script thử nghiệm tạm (`scripts/test_gemini.mjs`) và các file dev tạm thời.
+
+---------------------------------
+
+## Cài đặt nhanh & chạy (dev)
+
+Yêu cầu môi trường
+- Node.js 18+ (khuyến nghị 20.19+ hoặc 22.12+ để tương thích với Vite)
 - npm hoặc yarn
 
-### Cài đặt
-```bash
-# Clone repository (nếu có)
-git clone [repository-url]
-
-# Di chuyển vào thư mục dự án
-cd vietnam-history-1954-1964
-
-# Cài đặt dependencies
+Install
+```powershell
 npm install
 ```
 
-### Cấu hình AI Assistant (Tùy chọn)
-Để sử dụng tính năng AI Assistant, bạn cần:
-
-1. **Tạo OpenAI API Key**:
-   - Truy cập: https://platform.openai.com/api-keys
-   - Đăng ký/đăng nhập tài khoản OpenAI
-   - Tạo API key mới
-
-2. **Cấu hình môi trường**:
-   ```bash
-   # Copy file cấu hình mẫu
-   cp .env.example .env
-
-   # Mở file .env và thay thế API key
-   # VITE_OPENAI_API_KEY=your_actual_api_key_here
-   ```
-
-⚠️ **Lưu ý bảo mật**:
-- Không bao giờ commit file `.env` lên Git
-- Không chia sẻ API key với người khác
-- API key đã được thêm vào `.gitignore`
-
-### Chạy development server
-```bash
+Chạy dev server
+```powershell
 npm run dev
 ```
 
-Website sẽ chạy tại: `http://localhost:5173`
-
-### Build cho production
-```bash
+Build production
+```powershell
 npm run build
 ```
 
-## 📖 Nội dung chính
+---------------------------------
 
-### 1. Dòng thời gian (Timeline)
-- **1954**: Hiệp định Geneva, Ngô Đình Diệm lên nắm quyền
-- **1955**: Từ chối tổng tuyển cử, Chiến dịch "Tố Cộng"
-- **1960**: Thành lập Mặt trận Dân tộc Giải phóng miền Nam
-- **1961-1964**: Leo thang can thiệp của Mỹ
+## Cấu hình AI Assistant (Gemini)
 
-### 2. Phân tích so sánh
-- **Quan điểm "Nội chiến"**: Luận điểm và dẫn chứng
-- **Quan điểm "Giải phóng dân tộc"**: Phân tích dựa trên dữ kiện lịch sử
-- **Căn cứ pháp lý, chính trị, xã hội**
+1. Thêm biến môi trường trong file `.env` ở project root (KHÔNG commit file này):
 
-### 3. Kết luận
-- **Cuộc đấu tranh giải phóng dân tộc** (không phải nội chiến)
-- Ba căn cứ chính: Pháp lý, Chính trị, Xã hội
-- Ý nghĩa lịch sử và bài học
+```properties
+# .env (local only - do not commit)
+VITE_GEMINI_API_KEY=your_google_api_key_here
+```
 
-## 🎨 Design System
+2. Mặc định adapter sẽ ưu tiên model `gemini-2.5-flash`. Nếu model này không khả dụng cho API key của bạn, adapter sẽ thử các model dự phòng.
 
-### Màu sắc chủ đạo
-- **Primary**: Blue to Purple gradient
-- **Accent**: Red (Vietnam flag)
-- **Secondary**: Gold/Yellow
-- **Neutral**: Gray scale
+3. Lưu ý bảo mật: không đưa API key vào git. Nếu bạn cần share repo, cung cấp hướng dẫn cho đồng nghiệp tạo `.env` riêng.
 
-### Typography
-- **Font chính**: Inter (Google Fonts)
-- **Responsive**: 4xl → 6xl cho headers
-- **Accessibility**: High contrast ratios
+---------------------------------
 
-## 🔧 Tính năng kỹ thuật
+## Ghi chú kỹ thuật ngắn
 
-### Performance
-- ⚡ Vite cho build time nhanh
-- 🎯 Code splitting tự động
-- 📱 Responsive images
-- 🚀 Lazy loading
+- Trợ lý AI (`src/lib/ai/gemini.ts`) sử dụng SDK Google Generative AI và sẽ gọi model được cấu hình (mặc định `gemini-2.5-flash`).
+- Debug thông tin (prompt preview, timing, lỗi) được ghi vào `console` (không in vào chat UI) để tránh leak secrets.
+- Các lỗi TypeScript không liên quan đã được dọn (unused imports/variables).
 
-### Accessibility
-- ♿ Semantic HTML
-- 🎯 ARIA labels
-- ⌨️ Keyboard navigation
-- 🎨 High contrast support
+---------------------------------
 
-### SEO
-- 📊 Meta tags optimization
-- 🔍 Structured data
-- 📱 Mobile-first design
+## Push checklist
 
-## 📊 Số liệu quan trọng
+1. Đảm bảo `.env` không nằm trong commit.
+2. Chạy `npm run build` để kiểm tra lỗi build (local). Node >= 20.19.0 hoặc >=22.12.0 được khuyến nghị.
+3. Commit và push.
 
-| Thống kê | Giá trị |
-|----------|---------|
-| Người bị bắt trong "Tố Cộng" | 100,000+ |
-| Người bị giết hại (1955-1959) | ~25,000 |
-| Ủng hộ thống nhất (CIA 1955) | 80% |
-| Quân nhân Mỹ (1961→1964) | 3,200→23,300 |
-
-## 🏆 Điểm nổi bật của dự án
-
-### 🎯 Tính khoa học
-- Dựa trên tài liệu lịch sử chính thức
-- Phân tích khách quan, đa chiều
-- Kết luận có căn cứ vững chắc
-
-### 💡 Tính sáng tạo
-- AI-powered features
-- Interactive timeline
-- Smart search với gợi ý
-- Modern web technologies
-
-### 🌍 Tính ứng dụng
-- Phù hợp giảng dạy và nghiên cứu
-- Trải nghiệm user-friendly
-- Responsive trên mọi thiết bị
-
-## 👥 Tác giả
-
-**Sản phẩm môn học Lịch sử Đảng Cộng sản Việt Nam**
-- Trường: [Tên trường]
-- Lớp: [Lớp]
-- Học kỳ: [Học kỳ]
-
-## 📞 Liên hệ
-
-Nếu có câu hỏi hoặc đóng góp, vui lòng liên hệ qua:
-- Email: [email]
-- GitHub: [github-profile]
+Nếu bạn muốn, tôi có thể thêm một script `prepush` để kiểm tra `npm run build` trước khi push.
 
 ---
 
-**"Lịch sử là thầy giáo vĩ đại của cuộc sống. Hãy học từ quá khứ để xây dựng tương lai tốt đẹp hơn."**
+Nếu cần chỉnh sửa README thêm (thêm hướng dẫn deploy, CI, hoặc secrets management), cho tôi biết nội dung bạn muốn thêm và tôi sẽ cập nhật.
