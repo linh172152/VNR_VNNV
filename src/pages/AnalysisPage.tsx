@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Scale,
   ChevronDown,
   ChevronUp,
   FileText,
@@ -18,13 +17,9 @@ import { analysisData } from '../data/analysisData'
 
 const AnalysisPage = () => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
-  const [selectedViewpoint, setSelectedViewpoint] = useState<'independence' | 'socialism' | 'comparison'>('comparison')
+  const [selectedViewpoint, _setSelectedViewpoint] = useState<'independence' | 'socialism' | 'comparison'>('comparison')
 
-  const viewpoints = [
-    { id: 'independence', label: 'Tư tưởng độc lập dân tộc', color: 'from-red-500 to-red-600', icon: XCircle },
-    { id: 'socialism', label: 'Tư tưởng chủ nghĩa xã hội', color: 'from-green-500 to-green-600', icon: CheckCircle },
-    { id: 'comparison', label: 'Phân tích toàn diện', color: 'from-blue-500 to-blue-600', icon: Scale }
-  ]
+  // Viewpoints list (kept as reference for future UI controls)
 
   const getAnalysisIcon = (category: string) => {
     if (category.includes('độc lập')) return Gavel

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   MessageCircle,
@@ -8,12 +8,18 @@ import {
   RefreshCw,
   X
 } from 'lucide-react'
+import { generateGeminiResponse } from '../lib/ai/gemini'
 
 interface Message {
   id: string
   text: string
   isUser: boolean
   timestamp: Date
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 interface Persona {
@@ -26,293 +32,86 @@ interface Persona {
   personality: string
 }
 
+// Component constants
+const aiPersona: Persona = {
+  id: 'ai-assistant',
+  name: 'AI Lịch sử Việt Nam',
+  title: 'Trợ lý AI chuyên về giai đoạn 1954-1965',
+  avatar: '/images/img2.svg',
+  description: 'AI được huấn luyện chuyên sâu về giai đoạn 1954-1965 ở Việt Nam và quan điểm "nội chiến"',
+  color: 'from-orange-500 to-red-600',
+  personality: 'intelligent'
+}
+
+const suggestedQuestions = [
+  "Quan điểm 'nội chiến' có đúng không khi có sự can thiệp của Mỹ?",
+  "Hiệp định Geneva 1954 có ý nghĩa gì?",
+  "Chế độ Ngô Đình Diệm có tính chính danh không?",
+  "Mỹ can thiệp vào Việt Nam như thế nào?",
+  "Tại sao gọi là chiến tranh giải phóng dân tộc?",
+  "Mặt trận Dân tộc Giải phóng được thành lập khi nào?",
+  "Chiến dịch Tố Cộng là gì?",
+  "Nghị quyết Vịnh Bắc Bộ có tác động gì?"
+]
+
+const initialMessage = "Xin chào! Tôi là AI Lịch sử Việt Nam, được huấn luyện chuyên sâu về giai đoạn 1954-1965 ở Việt Nam. Tôi có thể giúp bạn phân tích quan điểm 'nội chiến', tìm hiểu về Hiệp định Geneva, chế độ Ngô Đình Diệm, sự can thiệp của Mỹ, và đưa ra nhận định về bản chất thực sự của cuộc đấu tranh trong giai đoạn này. Bạn muốn tìm hiểu về vấn đề gì?"
+
 const AIHistoricalAssistant = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = useState('')
+  const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem('ai-chat-history')
+    return saved ? JSON.parse(saved) : []
+  })
 
   const [isTyping, setIsTyping] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const aiPersona: Persona = {
-    id: 'ai-assistant',
-    name: 'AI Lịch sử Việt Nam',
-    title: 'Trợ lý AI chuyên về giai đoạn 1954-1965',
-    avatar: '/images/img2.svg',
-    description: 'AI được huấn luyện chuyên sâu về giai đoạn 1954-1965 ở Việt Nam và quan điểm "nội chiến"',
-    color: 'from-orange-500 to-red-600',
-    personality: 'intelligent'
-  }
 
-  const suggestedQuestions = [
-    "Quan điểm 'nội chiến' có đúng không khi có sự can thiệp của Mỹ?",
-    "Hiệp định Geneva 1954 có ý nghĩa gì?",
-    "Chế độ Ngô Đình Diệm có tính chính danh không?",
-    "Mỹ can thiệp vào Việt Nam như thế nào?",
-    "Tại sao gọi là chiến tranh giải phóng dân tộc?",
-    "Mặt trận Dân tộc Giải phóng được thành lập khi nào?",
-    "Chiến dịch Tố Cộng là gì?",
-    "Nghị quyết Vịnh Bắc Bộ có tác động gì?"
-  ]
-
-  const initialMessage = useMemo(() =>
-    "Xin chào! Tôi là AI Lịch sử Việt Nam, được huấn luyện chuyên sâu về giai đoạn 1954-1965 ở Việt Nam. Tôi có thể giúp bạn phân tích quan điểm 'nội chiến', tìm hiểu về Hiệp định Geneva, chế độ Ngô Đình Diệm, sự can thiệp của Mỹ, và đưa ra nhận định về bản chất thực sự của cuộc đấu tranh trong giai đoạn này. Bạn muốn tìm hiểu về vấn đề gì?"
-  , [])
-
-  const getOfflineResponse = (message: string): string | null => {
-    const lowerMessage = message.toLowerCase()
-
-    const responses: { [key: string]: string } = {
-      "nội chiến": `Quan điểm "nội chiến" trong giai đoạn 1954-1965:
-
-❌ **KHÔNG ĐÚNG** vì:
-
-🔍 **Định nghĩa nội chiến**: Cuộc xung đột vũ trang giữa các nhóm trong cùng một quốc gia, KHÔNG có sự can thiệp từ bên ngoài
-
-🇺🇸 **Thực tế lịch sử**: Mỹ đã can thiệp trực tiếp từ năm 1954:
-• Viện trợ kinh tế, quân sự cho chính quyền Sài Gòn
-• Gửi cố vấn quân sự từ năm 1961
-• Đổ bộ lính Mỹ năm 1965
-
-🏛️ **Tính chính danh**: Chính quyền Việt Nam Cộng hòa được Mỹ dựng lên, không có tính chính danh
-
-✅ **Bản chất thực sự**: Chiến tranh giải phóng dân tộc chống chủ nghĩa thực dân mới`,
-
-      "hiệp định geneva": `Hiệp định Geneva 1954:
-
-📅 **Thời gian**: 21/7/1954
-
-🎯 **Nội dung chính**:
-• Kết thúc chiến tranh Đông Dương lần thứ nhất
-• Chia đôi Việt Nam tại vĩ tuyến 17
-• Dự kiến tổng tuyển cử thống nhất trong 2 năm (1956)
-
-⚖️ **Ý nghĩa pháp lý**: Cơ sở pháp lý cho việc thống nhất đất nước
-
-❌ **Vi phạm**: Chính quyền Sài Gòn từ chối tổ chức tổng tuyển cử`,
-
-      "ngô đình diệm": `Chế độ Ngô Đình Diệm (1954-1963):
-
-👑 **Đặc điểm**: Độc tài gia đình trị, tập trung quyền lực
-
-🇺🇸 **Hậu thuẫn**: Được Mỹ ủng hộ hoàn toàn về kinh tế, quân sự
-
-❌ **Vi phạm**: Từ chối tổ chức tổng tuyển cử theo Hiệp định Geneva
-
-💀 **Đàn áp**: Chiến dịch Tố Cộng (1955-1959):
-• Hơn 100,000 người bị bắt
-• 25,000 người bị giết
-• Luật 10/59 cho phép tử hình không cần xét xử
-
-⚰️ **Kết thúc**: Bị đảo chính và giết chết ngày 2/11/1963`,
-
-      "mỹ can thiệp": `Sự can thiệp của Mỹ vào Việt Nam:
-
-📈 **Giai đoạn 1954-1960**: Viện trợ kinh tế, chính trị (thuyết Domino Theory)
-
-🎖️ **Giai đoạn 1961-1964**: Can thiệp quân sự gián tiếp:
-• Gửi cố vấn quân sự
-• Cung cấp vũ khí, thiết bị
-• Số quân tăng từ 3,200 (1961) lên 23,300 (1964)
-
-⚔️ **Giai đoạn 1965-1975**: Chiến tranh cục bộ:
-• Đổ bộ lính Mỹ trực tiếp
-• Nghị quyết Vịnh Bắc Bộ (1964) tạo cớ pháp lý`,
-
-      "giải phóng dân tộc": `Tại sao gọi là chiến tranh giải phóng dân tộc:
-
-🎯 **Mục tiêu**: Giải phóng dân tộc khỏi ách thống trị nước ngoài
-
-👥 **Lực lượng**: Nhân dân miền Nam ủng hộ thống nhất đất nước
-
-🏛️ **Tính chính nghĩa**: Đấu tranh vì độc lập, tự do của dân tộc
-
-🌍 **Xu thế thời đại**: Phù hợp với phong trào giải phóng dân tộc thế giới
-
-⚖️ **Cơ sở pháp lý**: Theo quyền tự quyết dân tộc của Liên Hợp Quốc`,
-
-      "mặt trận giải phóng": `Mặt trận Dân tộc Giải phóng miền Nam:
-
-📅 **Thành lập**: 20/12/1960
-
-🎯 **Mục tiêu**: Độc lập, dân chủ, hòa bình, trung lập
-
-👥 **Thành phần**: Đoàn kết các lực lượng yêu nước ở miền Nam
-
-⚔️ **Phương thức**: Kết hợp đấu tranh chính trị và vũ trang
-
-🌟 **Ý nghĩa**: Phản ánh ý chí thống nhất của nhân dân miền Nam`,
-
-      "tố cộng": `Chiến dịch Tố Cộng (1955-1959):
-
-💀 **Mục đích**: Đàn áp các phong trào yêu nước ở miền Nam
-
-📜 **Luật 10/59**: Cho phép tử hình không cần xét xử
-
-📊 **Thống kê**:
-• Hơn 100,000 người bị bắt
-• 25,000 người bị giết
-• Hàng nghìn người bị tra tấn
-
-❌ **Hậu quả**: Tạo ra sự căm thù sâu sắc trong nhân dân`,
-
-      "vịnh bắc bộ": `Nghị quyết Vịnh Bắc Bộ (7/8/1964):
-
-⚔️ **Nội dung**: Cho phép Tổng thống Mỹ sử dụng vũ lực ở Việt Nam
-
-🎯 **Mục đích**: Tạo cớ pháp lý cho can thiệp quân sự trực tiếp
-
-📈 **Hậu quả**: Mở đường cho cuộc chiến tranh cục bộ
-
-🇺🇸 **Ý nghĩa**: Bước ngoặt trong chính sách của Mỹ đối với Việt Nam`,
-
-      "tại sao": `Tại sao giai đoạn 1954-1965 không phải là nội chiến?
-
-🔍 **Định nghĩa nội chiến**: Xung đột vũ trang giữa các nhóm trong cùng một quốc gia, KHÔNG có sự can thiệp từ bên ngoài
-
-🇺🇸 **Thực tế lịch sử**: Mỹ đã can thiệp trực tiếp từ năm 1954:
-• Viện trợ kinh tế, quân sự cho chính quyền Sài Gòn
-• Gửi cố vấn quân sự từ năm 1961
-• Đổ bộ lính Mỹ năm 1965
-
-🏛️ **Tính chính danh**: Chính quyền Việt Nam Cộng hòa được Mỹ dựng lên, không có tính chính danh
-
-✅ **Kết luận**: Đây là chiến tranh giải phóng dân tộc chống chủ nghĩa thực dân mới`,
-
-      "như thế nào": `Giai đoạn 1954-1965 diễn ra như thế nào?
-
-📅 **1954**: Hiệp định Geneva chia đôi Việt Nam tại vĩ tuyến 17
-👑 **1954-1963**: Chế độ Ngô Đình Diệm được Mỹ hậu thuẫn
-💀 **1955-1959**: Chiến dịch Tố Cộng đàn áp nhân dân
-🇺🇸 **1961-1964**: Mỹ can thiệp quân sự gián tiếp
-⚔️ **1964**: Nghị quyết Vịnh Bắc Bộ tạo cớ pháp lý
-🎯 **1965**: Mỹ đổ bộ lính trực tiếp, bắt đầu chiến tranh cục bộ
-
-🌟 **Bản chất**: Cuộc đấu tranh giải phóng dân tộc chống ngoại xâm`,
-
-      "ai": `Ai là những nhân vật chính trong giai đoạn 1954-1965?
-
-👑 **Ngô Đình Diệm**: Tổng thống Việt Nam Cộng hòa (1954-1963)
-🇺🇸 **Tổng thống Mỹ**: Eisenhower, Kennedy, Johnson
-🎖️ **Tướng Mỹ**: Westmoreland, McNamara
-👥 **Nhân dân miền Nam**: Ủng hộ thống nhất đất nước
-🏛️ **Chính quyền Sài Gòn**: Được Mỹ dựng lên, thiếu tính chính danh
-
-🌟 **Điểm chung**: Tất cả đều liên quan đến cuộc đấu tranh giải phóng dân tộc`,
-
-      "khi nào": `Khi nào các sự kiện quan trọng diễn ra?
-
-📅 **21/7/1954**: Hiệp định Geneva
-👑 **1954**: Ngô Đình Diệm lên nắm quyền
-💀 **1955-1959**: Chiến dịch Tố Cộng
-🇺🇸 **1961**: Mỹ gửi cố vấn quân sự
-⚔️ **7/8/1964**: Nghị quyết Vịnh Bắc Bộ
-🎯 **1965**: Mỹ đổ bộ lính trực tiếp
-
-🌟 **Kết luận**: Toàn bộ giai đoạn 1954-1965 là quá trình Mỹ can thiệp ngày càng sâu vào Việt Nam`
-    }
-
-    for (const [keyword, response] of Object.entries(responses)) {
-      if (lowerMessage.includes(keyword) || lowerMessage.includes(keyword.replace(/\s+/g, ''))) {
-        return response
-      }
-    }
-
-    // Check for common greetings
-    if (lowerMessage.includes('xin chào') || lowerMessage.includes('hello') || lowerMessage.includes('chào')) {
-      return "Xin chào! Tôi có thể giúp bạn tìm hiểu về giai đoạn 1954-1965 ở Việt Nam. Bạn muốn hỏi về: Quan điểm 'nội chiến', Hiệp định Geneva, Chế độ Ngô Đình Diệm, Sự can thiệp của Mỹ, hay Chiến tranh giải phóng dân tộc?"
-    }
-
-    // Check for general questions about the period
-    if (lowerMessage.includes('giai đoạn') || lowerMessage.includes('thời kỳ') || lowerMessage.includes('period')) {
-      return `Giai đoạn 1954-1965 là một thời kỳ quan trọng trong lịch sử Việt Nam:
-
-📅 **Bối cảnh**: Sau Hiệp định Geneva 1954, Việt Nam bị chia đôi tại vĩ tuyến 17
-👑 **Miền Nam**: Chế độ Ngô Đình Diệm được Mỹ hậu thuẫn
-🇺🇸 **Can thiệp Mỹ**: Từ viện trợ kinh tế đến can thiệp quân sự trực tiếp
-⚔️ **Bản chất**: Chiến tranh giải phóng dân tộc chống chủ nghĩa thực dân mới
-
-🔍 **Quan điểm "nội chiến"**: KHÔNG ĐÚNG vì có sự can thiệp của Mỹ từ năm 1954
-
-Bạn muốn tìm hiểu sâu hơn về khía cạnh nào?`
-    }
-
-    // Check for questions about the main topic
-    if (lowerMessage.includes('chủ đề') || lowerMessage.includes('topic') || lowerMessage.includes('bài học')) {
-      return `Chủ đề chính của tôi là: **"Giai đoạn 1954-1965 ở Việt Nam: Có phải là nội chiến không?"**
-
-🎯 **Câu hỏi nghiên cứu**: Quan điểm cho rằng giai đoạn 1954-1965 là "nội chiến" có đúng không?
-
-📊 **Phân tích chính**:
-• Hiệp định Geneva 1954 và việc chia đôi đất nước
-• Chế độ Ngô Đình Diệm và tính chính danh
-• Sự can thiệp của Mỹ qua các giai đoạn
-• Bản chất thực sự của cuộc đấu tranh
-
-✅ **Kết luận**: KHÔNG phải nội chiến mà là chiến tranh giải phóng dân tộc
-
-Bạn muốn tìm hiểu chi tiết về khía cạnh nào?`
-    }
-
-    // Check for completely off-topic questions (not related to history or Vietnam)
-    const completelyOffTopicKeywords = [
-      'thời tiết', 'thời trang', 'âm nhạc', 'phim ảnh', 'thể thao', 'du lịch', 
-      'nấu ăn', 'công nghệ', 'lập trình', 'toán học', 'vật lý', 'hóa học',
-      'sinh học', 'địa lý', 'kinh tế', 'tài chính', 'y tế', 'giáo dục',
-      'tình yêu', 'hẹn hò', 'gia đình', 'bạn bè', 'công việc', 'nghề nghiệp'
+  // Simple on-topic checker: returns true if the message appears to be about
+  // Vietnam history (1954-1965) or is a greeting. If false, we won't call the
+  // remote API and will politely refuse to answer off-topic questions.
+  const isOnTopic = (message: string): boolean => {
+    const lower = message.toLowerCase()
+
+    // Allow common greetings and basic questions
+    if (/(^|\s)(xin chào|chào|hello|hi|alo)(\s|$)/.test(lower)) return true
+    if (/(thêm thông tin|cho tôi hỏi|cho hỏi|muốn hỏi)/.test(lower)) return true
+
+    const allowedKeywords = [
+      'nội chiến', 'hiệp định', 'geneva', 'ngô đình diệm', 'diệm', 'mỹ', 'can thiệp',
+      'chiến tranh', 'giải phóng', 'tố cộng', 'vịnh bắc bộ', 'mặt trận',
+      '1954', '1955', '1960', '1961', '1964', '1965', 'tổng tuyển cử',
+      'lịch sử', 'việt nam', 'miền nam', 'miền bắc', 'sài gòn', 'hà nội'
     ]
-    
-    for (const keyword of completelyOffTopicKeywords) {
-      if (lowerMessage.includes(keyword)) {
-        return `Tôi là AI chuyên về lịch sử Việt Nam giai đoạn 1954-1965. Tôi không thể trả lời câu hỏi về "${keyword}". 
 
-Hãy hỏi tôi về:
-🔍 Quan điểm "nội chiến" trong giai đoạn này
-📅 Hiệp định Geneva 1954
-👑 Chế độ Ngô Đình Diệm
-🇺🇸 Sự can thiệp của Mỹ
-⚔️ Chiến tranh giải phóng dân tộc
-
-Tôi sẽ giúp bạn hiểu rõ hơn về giai đoạn lịch sử quan trọng này!`
-      }
-    }
-
-    return null
+    return allowedKeywords.some(k => lower.includes(k))
   }
 
-          const generateAIResponse = async (message: string): Promise<string> => {
+  const generateAIResponse = async (message: string): Promise<string> => {
     setIsTyping(true)
 
-    // First try offline responses for better user experience
-    const offlineResponse = getOfflineResponse(message)
-    if (offlineResponse) {
+    // Early on-topic check: refuse to answer questions that are not about
+    // Vietnam history (1954-1965). This prevents the assistant from
+    // responding to unrelated queries like "top 10 món ăn...".
+    if (!isOnTopic(message)) {
       setIsTyping(false)
-      return offlineResponse
+      return "Xin lỗi, tôi chỉ trả lời các câu hỏi về lịch sử Việt Nam giai đoạn 1954-1965. Vui lòng hỏi về Hiệp định Geneva, Ngô Đình Diệm, sự can thiệp của Mỹ, quan điểm 'nội chiến', v.v."
     }
 
     try {
-      // Check if API key is available
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      // Check if API key is available (Gemini)
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       if (!apiKey || apiKey.trim() === '') {
         setIsTyping(false)
         // Return a helpful response about the topic instead of API key message
-        return "Tôi có thể giúp bạn tìm hiểu về giai đoạn 1954-1965 ở Việt Nam! Bạn có thể hỏi về:\n\n🔍 **Quan điểm 'nội chiến'** - Tại sao không đúng?\n📅 **Hiệp định Geneva 1954** - Nội dung và ý nghĩa\n👑 **Chế độ Ngô Đình Diệm** - Tính chất và vi phạm\n🇺🇸 **Sự can thiệp của Mỹ** - Các giai đoạn can thiệp\n⚔️ **Chiến tranh giải phóng dân tộc** - Bản chất thực sự\n\nHãy thử hỏi một trong những chủ đề trên!"
+        return "Tôi có thể giúp bạn tìm hiểu về giai đoạn 1954-1965 ở Việt Nam! Bạn có thể hỏi về:\n\n🔍 **Quan điểm 'nội chiến'** - Tại sao không đúng?\n📅 **Hiệp định Geneva 1954** - Nội dung và ý nghĩa\n+👑 **Chế độ Ngô Đình Diệm** - Tính chất và vi phạm\n🇺🇸 **Sự can thiệp của Mỹ** - Các giai đoạn can thiệp\n⚔️ **Chiến tranh giải phóng dân tộc** - Bản chất thực sự\n\nHãy thử hỏi một trong những chủ đề trên!"
       }
 
-
-
-      // Import OpenAI
-      const { OpenAI } = await import('openai')
-
-      const openai = new OpenAI({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true
-      })
-
-      // Get conversation history from localStorage
-      const conversationHistory = JSON.parse(localStorage.getItem('ai-chat-history') || '[]')
-
+      // Use Gemini adapter
+      // Lazy import the adapter to keep bundle small if not used
       // System prompt for Vietnam History 1954-1965
       const systemPrompt = `Bạn là một AI chuyên gia về lịch sử Việt Nam giai đoạn 1954-1965. Bạn được huấn luyện chuyên sâu để phân tích quan điểm "nội chiến" và cung cấp thông tin chính xác, khách quan về giai đoạn này.
 
@@ -364,7 +163,7 @@ NGUYÊN TẮC TRẢ LỜI:
 - Không thể hiện quan điểm chính trị hiện tại
 - Không thiên vị quá mức theo một quan điểm duy nhất`
 
-      // Build messages array for OpenAI
+      // Build messages array for the Gemini adapter (same role/content shape)
       const messages = [
         {
           role: 'system' as const,
@@ -382,35 +181,48 @@ NGUYÊN TẮC TRẢ LỜI:
         }
       ]
 
-      // Generate response using OpenAI
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: messages,
-        max_tokens: 1000,
-        temperature: 0.7
-      })
+      // Show a sanitized debug preview of the prompt in the chat (no API keys)
+      try {
+        const promptPreview = (systemPrompt + "\n\nCÂU HỎI: " + message).slice(0, 1200)
+        // Log debug to console only (do not print API keys or long secrets)
+        console.debug('DEBUG: Sending prompt preview:', promptPreview)
 
-      const reply = completion.choices[0]?.message?.content || "Xin lỗi, tôi không thể tạo phản hồi lúc này."
+        const start = Date.now()
+        // Generate response using Gemini adapter
+        const reply = await generateGeminiResponse(messages, apiKey)
+        const duration = Date.now() - start
 
-      // Update conversation history
-      const updatedHistory = [
-        ...conversationHistory,
-        { role: 'user', content: message },
-        { role: 'assistant', content: reply }
-      ]
+        // Log debug info about the reply to console
+        console.debug(`DEBUG: Received reply in ${duration} ms (length: ${reply?.length ?? 0})`)
 
-      // Keep only last 10 exchanges to prevent context from getting too long
-      if (updatedHistory.length > 20) {
-        updatedHistory.splice(0, updatedHistory.length - 20)
+        // Update conversation history
+        const updatedHistory = [
+          ...conversationHistory,
+          { role: 'user' as const, content: message },
+          { role: 'assistant' as const, content: reply }
+        ]
+
+        // Keep only last 10 exchanges to prevent context from getting too long
+        if (updatedHistory.length > 20) {
+          updatedHistory.splice(0, updatedHistory.length - 20)
+        }
+
+        localStorage.setItem('ai-chat-history', JSON.stringify(updatedHistory))
+        setConversationHistory(updatedHistory)
+
+        setIsTyping(false)
+        return reply
+      } catch (err) {
+        // Log error to console and show friendly message to user
+        const errorText = err instanceof Error ? err.message : String(err)
+        console.error('DEBUG: Error calling Gemini API:', errorText)
+
+        setIsTyping(false)
+        return `Xin lỗi, tôi đang gặp sự cố kỹ thuật (${errorText}). Vui lòng thử lại sau.`
       }
 
-      localStorage.setItem('ai-chat-history', JSON.stringify(updatedHistory))
-
-      setIsTyping(false)
-      return reply
-
     } catch (error) {
-      console.error('Error calling OpenAI API:', error)
+      console.error('Error calling Gemini API:', error)
       console.error('Error details:', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
@@ -421,63 +233,19 @@ NGUYÊN TẮC TRẢ LỜI:
       // Check for specific API errors
       const errorMessage = error instanceof Error ? error.message : String(error)
 
-      if (errorMessage.includes('API key not valid') || errorMessage.includes('Incorrect API key') || errorMessage.includes('invalid_api_key')) {
-        return "❌ API key không hợp lệ!\n\n🔧 Cách khắc phục:\n1. Kiểm tra API key trong file .env\n2. Đảm bảo API key bắt đầu bằng 'sk-proj-...'\n3. Khởi động lại server (Ctrl+C rồi npm run dev)\n4. Refresh trang web\n\n💡 Hiện tại AI đang hoạt động ở chế độ offline với câu trả lời có sẵn."
+      if (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('invalid')) {
+        return "❌ API key không hợp lệ hoặc thiếu!\n\n🔧 Cách khắc phục:\n1. Kiểm tra API key trong file .env (VITE_GEMINI_API_KEY)\n2. Đảm bảo bạn đã cung cấp một API key hợp lệ\n3. Khởi động lại server (Ctrl+C rồi npm run dev)\n4. Refresh trang web\n\n💡 Hiện tại AI đang hoạt động ở chế độ offline với câu trả lời có sẵn."
       }
 
-      if (errorMessage.includes('quota') || errorMessage.includes('rate_limit_exceeded')) {
-        return "Xin lỗi, đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau."
+      if (errorMessage.includes('insufficient_quota') || errorMessage.includes('billing') || errorMessage.includes('quota')) {
+        return "❌ Lỗi thanh toán!\n\n🔧 Nguyên nhân có thể:\n1. Tài khoản chưa có credit\n2. Đã vượt quá giới hạn sử dụng\n3. Cần nạp thêm credit vào tài khoản\n\n💡 Đang sử dụng chế độ offline với câu trả lời có sẵn."
       }
 
-      if (errorMessage.includes('insufficient_quota') || errorMessage.includes('billing')) {
-        return "❌ Lỗi thanh toán!\n\n🔧 Nguyên nhân có thể:\n1. Tài khoản OpenAI chưa có credit\n2. Đã vượt quá giới hạn sử dụng\n3. Cần nạp thêm credit vào tài khoản\n\n💡 Đang sử dụng chế độ offline với câu trả lời có sẵn."
-      }
+      // No more fallback responses - let the error propagate
+      throw error;
 
-      // Fallback response with helpful content
-      const fallbackResponses = {
-        "geneva": "Hiệp định Geneva được ký ngày 21/7/1954, kết thúc chiến tranh Đông Dương lần thứ nhất. Hiệp định tạm chia Việt Nam tại vĩ tuyến 17 và quy định tổ chức tổng tuyển cử thống nhất trong 2 năm (1956).",
-        "diệm": "Ngô Đình Diệm lên nắm quyền năm 1954 với sự ủng hộ của Mỹ. Ông từ chối tổ chức tổng tuyển cử năm 1956 và thực hiện Chiến dịch Tố Cộng đàn áp người dân. Diệm bị đảo chính và giết chết ngày 2/11/1963.",
-        "tố cộng": "Chiến dịch Tố Cộng (1955-1959) là chiến dịch đàn áp của chính quyền Diệm. Luật 10/59 cho phép tử hình không cần xét xử. Hơn 100,000 người bị bắt, 25,000 người bị giết.",
-        "mặt trận": "Mặt trận Dân tộc Giải phóng miền Nam được thành lập ngày 20/12/1960, phản ứng trước sự đàn áp của chế độ Mỹ-Diệm. Mục tiêu: độc lập, dân chủ, hòa bình, trung lập.",
-        "mỹ": "Mỹ bắt đầu can thiệp vào Việt Nam từ 1954 thay thế Pháp. Số quân Mỹ tăng từ 3,200 (1961) lên 23,300 (1964) dưới thời Tổng thống Kennedy.",
-        "nội chiến": "Quan điểm 'nội chiến' là KHÔNG ĐÚNG vì có sự can thiệp của Mỹ từ năm 1954. Đây thực chất là chiến tranh giải phóng dân tộc chống chủ nghĩa thực dân mới.",
-        "giải phóng": "Chiến tranh giải phóng dân tộc vì mục tiêu độc lập, tự do của dân tộc. Nhân dân miền Nam ủng hộ thống nhất đất nước, không phải xung đột nội bộ."
-      }
-
-      const lowerMessage = message.toLowerCase()
-      for (const [key, response] of Object.entries(fallbackResponses)) {
-        if (lowerMessage.includes(key)) {
-          return response + "\n\n(Lưu ý: AI đang gặp sự cố kỹ thuật, đây là thông tin cơ bản. Vui lòng thử lại sau.)"
-        }
-      }
-
-      // Final fallback - try to provide a helpful response based on context
-      const historyKeywords = ['lịch sử', 'việt nam', 'chiến tranh', 'cách mạng', 'đảng', 'chính trị', 'chính quyền', 'dân tộc', 'độc lập', 'tự do', 'thống nhất', 'miền nam', 'miền bắc', 'sài gòn', 'hà nội']
-      const isHistoryRelated = historyKeywords.some(keyword => lowerMessage.includes(keyword))
-      
-      if (isHistoryRelated) {
-        return `Tôi hiểu bạn đang hỏi về lịch sử Việt Nam. Tôi chuyên sâu về giai đoạn 1954-1965. Dựa trên kiến thức của tôi, tôi có thể giúp bạn hiểu:
-
-🔍 **Về quan điểm "nội chiến"**: Giai đoạn 1954-1965 KHÔNG phải là nội chiến vì có sự can thiệp trực tiếp của Mỹ từ năm 1954.
-
-📅 **Về Hiệp định Geneva**: Ký ngày 21/7/1954, chia đôi Việt Nam tại vĩ tuyến 17, dự kiến tổng tuyển cử thống nhất năm 1956.
-
-👑 **Về chế độ Ngô Đình Diệm**: Độc tài gia đình trị, được Mỹ hậu thuẫn, từ chối tổ chức tổng tuyển cử, thực hiện Chiến dịch Tố Cộng đàn áp nhân dân.
-
-🇺🇸 **Về sự can thiệp của Mỹ**: Từ viện trợ kinh tế (1954-1960) đến can thiệp quân sự gián tiếp (1961-1964) và trực tiếp (1965-1975).
-
-Bạn muốn tìm hiểu sâu hơn về khía cạnh nào?`
-      } else {
-        return `Tôi là AI chuyên về lịch sử Việt Nam giai đoạn 1954-1965. Tôi có thể giúp bạn hiểu về giai đoạn lịch sử quan trọng này.
-
-🔍 **Quan điểm "nội chiến"** - Tại sao không đúng?
-📅 **Hiệp định Geneva 1954** - Nội dung và ý nghĩa  
-👑 **Chế độ Ngô Đình Diệm** - Tính chất và vi phạm
-🇺🇸 **Sự can thiệp của Mỹ** - Các giai đoạn can thiệp
-⚔️ **Chiến tranh giải phóng dân tộc** - Bản chất thực sự
-
-Hãy hỏi tôi về bất kỳ khía cạnh nào của giai đoạn 1954-1965!`
-      }
+      // Return a generic error message
+      return "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau."
     }
   }
 
@@ -513,8 +281,9 @@ Hãy hỏi tôi về bất kỳ khía cạnh nào của giai đoạn 1954-1965!`
 
   const clearChat = () => {
     setMessages([])
-    // Clear thread from localStorage to start fresh
-    localStorage.removeItem('ai-chat-thread-id')
+    // Clear chat history
+    setConversationHistory([])
+    localStorage.removeItem('ai-chat-history')
     // Add initial message
     const welcomeMessage: Message = {
       id: Date.now().toString(),

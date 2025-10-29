@@ -4,7 +4,6 @@ import {
   BookOpen,
   Search,
   MessageSquare,
-  Brain,
   Code,
   Database,
   Zap,
