@@ -95,16 +95,33 @@ npm run build
 
 ## Cấu hình AI Assistant (Gemini)
 
-1. Thêm biến môi trường trong file `.env` ở project root (KHÔNG commit file này):
+### 🔑 **Bước 1: Lấy API Key**
+1. Truy cập: https://makersuite.google.com/app/apikey
+2. Đăng nhập tài khoản Google
+3. Tạo API key mới
+4. Copy API key
+
+### 📝 **Bước 2: Tạo file `.env`**
+Tạo file `.env` trong thư mục gốc của dự án:
 
 ```properties
-# .env (local only - do not commit)
-VITE_GEMINI_API_KEY=your_google_api_key_here
+# .env (local only - KHÔNG commit file này!)
+VITE_GEMINI_API_KEY=your_actual_api_key_here
 ```
 
-2. Mặc định adapter sẽ ưu tiên model `gemini-2.5-flash`. Nếu model này không khả dụng cho API key của bạn, adapter sẽ thử các model dự phòng.
+### ⚠️ **Lưu ý quan trọng:**
+- **KHÔNG commit file `.env`** lên GitHub (đã được gitignore)
+- **Mỗi thành viên** cần tạo file `.env` riêng với API key của mình
+- **Bảo mật API key** - không chia sẻ với người khác
 
-3. Lưu ý bảo mật: không đưa API key vào git. Nếu bạn cần share repo, cung cấp hướng dẫn cho đồng nghiệp tạo `.env` riêng.
+### 🔧 **Bước 3: Khởi động lại server**
+```bash
+npm run dev
+```
+
+### 📊 **Model hỗ trợ:**
+- Ưu tiên: `gemini-2.5-flash`
+- Dự phòng: `gemini-1.5`, `gemini-1.0`, `text-bison-001`
 
 ---------------------------------
 

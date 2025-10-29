@@ -103,7 +103,9 @@ const AIHistoricalAssistant = () => {
 
     try {
       // Check if API key is available (Gemini)
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      // Try environment variable first, then fallback to window config
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
+                    (window as any).APP_CONFIG?.GEMINI_API_KEY
       if (!apiKey || apiKey.trim() === '') {
         setIsTyping(false)
         // Return a helpful response about the topic instead of API key message

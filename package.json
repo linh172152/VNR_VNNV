@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "setup": "echo '🔑 Hướng dẫn setup API key:' && echo '1. Tạo file .env với nội dung: VITE_GEMINI_API_KEY=your_api_key' && echo '2. Lấy API key tại: https://makersuite.google.com/app/apikey' && echo '3. Chạy: npm run dev'"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
